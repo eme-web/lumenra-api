@@ -1,0 +1,18 @@
+{
+    "id": "UUID (Primary Key)",
+    "username": "String (Unique)",
+    "email": "String (Unique)",
+    "password_hash": "String",
+    "first_name": "String",
+    "last_name": "String",
+    "date_of_birth": "Date",
+    "gender": "String",
+    "is_verified": "Boolean",
+    "created_at": "DateTime",
+    "updated_at": "DateTime",
+    "auth_provider": "String (local, google, github)",
+    "last_login": "DateTime",
+    "failed_login_attempts": "INT",
+    "reset_token": "String",
+    "reset_token_expiry": "DateTime"
+}
