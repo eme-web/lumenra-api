@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+
+model User {
+  id                    String   @id @default(uuid())
+  fullName              String
+  email                 String   @unique
+  password              String
+  role                  Role   @default(USER)
+  confidencePre         Int?
+  confidencePost        Int?
+  otp                   String?
+  otpExpires            DateTime?
+  personalityProfile    Json?
+  personalityCompleted  Boolean @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  moduleProgress         UserModuleProgress[]
+  chatSessions           ChatSession[]
+}
+
+model Module {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  content       Json?    // structured lessons
+  videoUrl      String?
+  order         Int
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lessons       Lesson[]
+  quiz          Quiz?
+  progress      UserModuleProgress[]
+}
+
+model Lesson {
+  id          String      @id @default(uuid())
+  module      Module      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId    String
+
+  title       String
+  type        LessonType
+  content     String      // URL (video) or rich text
+  order       Int
+
+  createdAt   DateTime    @default(now())
+}
+
+model Quiz {
+  id            String     @id @default(uuid())
+  moduleId      String     @unique
+  questions     Question[]
+  module        Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+
+  passingScore  Int        @default(70)
+
+ 
+  
+}
+
+model Question {
+  id          String    @id @default(uuid())
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId      String
+
+  text        String
+
+  options     Option[]
+}
+
+
+model Option {
+  id          String    @id @default(uuid())
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId  String
+
+  text        String
+  isCorrect   Boolean   @default(false)
+}
+
+
+model UserModuleProgress {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+
+  module        Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId      String
+
+  completed     Boolean  @default(false)
+  completedAt   DateTime?
+
+  @@unique([userId, moduleId])
+}
+
+
+model ChatSession {
+  id          String       @id @default(uuid())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+
+  createdAt   DateTime     @default(now())
+
+  messages    ChatMessage[]
+}
+
+model ChatMessage {
+  id          String     @id @default(uuid())
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId   String
+
+  role        ChatRole
+  content     String
+
+  createdAt   DateTime   @default(now())
+}
