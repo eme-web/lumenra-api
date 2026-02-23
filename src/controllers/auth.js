@@ -4,6 +4,8 @@ import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
+import { sendBrevoMail } from "../services/mail.js";
+import setPassword from "../mails/reset-password.js";
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -86,7 +88,11 @@ export const forgotPassword = async (req, res) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, fullName: true, email: true },
+    });
+
     if (!user) {
       return res.json({ message: "If the email exists, an OTP has been sent" });
     }
@@ -101,13 +107,123 @@ export const forgotPassword = async (req, res) => {
       data: { otp, otpExpires },
     });
 
-    // TODO: Send real email with OTP (nodemailer, Resend, SendGrid, etc.)
-    console.log(`OTP for ${email}: ${otp}`); // For development only!
+    await sendBrevoMail({
+      email: user.email,
+      subject: "RESET PASSWORD",
+      body: setPassword({
+        otp,
+        name: user.fullName || "User",
+        title: "RESET PASSWORD",
+      }),
+    });
 
-    res.json({ message: "OTP sent to your email" });
+    // if (!emailResult.success) {
+    //   console.error("Email send failed:", emailResult.error);
+    // }
+
+    return res.json({
+      success: true,
+      message: "OTP sent to your email",
+      userId: user.id,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error sending OTP" });
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const verifyOtp = async (req, res) => {
+  const { userId, otp } = req.body;
+
+  if (!userId || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: "User ID and OTP are required",
+    });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        otp: true,
+        otpExpires: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // 2. Check if OTP was even requested
+    if (!user.otp || !user.otpExpires) {
+      return res.status(400).json({
+        success: false,
+        message: "No OTP request found or already used",
+      });
+    }
+
+    // 3. Validate OTP
+    if (user.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    // 4. Check expiration
+    if (new Date(user.otpExpires) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    // 5. OTP is valid → clear OTP fields & generate auth token
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        otp: null,
+        otpExpires: null,
+      },
+    });
+
+    // 6. Issue JWT for full session
+    // const token = jwt.sign(
+    //   {
+    //     id: user.id,
+    //     email: user.email,
+    //     role: user.role,
+    //   },
+    //   process.env.JWT_SECRET,
+    //   { expiresIn: process.env.JWT_EXPIRE },
+    // );
+
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName || "",
+      role: user.role,
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+      user: safeUser,
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during verification",
+    });
   }
 };
 
@@ -123,6 +239,7 @@ export const resetPassword = async (req, res) => {
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
+
     if (!user || !user.otp || !user.otpExpires) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
@@ -134,7 +251,7 @@ export const resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: {
         password: hashedPassword,
         otp: null,
@@ -146,5 +263,26 @@ export const resetPassword = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error during password reset" });
+  }
+};
+
+// Bonus: Save Personality Check Answers (called after frontend quiz)
+export const savePersonalityCheck = async (req, res) => {
+  const userId = req.user.id; // from JWT middleware
+  const answers = req.body; // { q1: "...", q2: "...", ... }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        personalityProfile: answers,
+        personalityCompleted: true,
+      },
+    });
+
+    res.json({ message: "Personality profile saved" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error saving profile" });
   }
 };
