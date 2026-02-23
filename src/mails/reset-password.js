@@ -1,4 +1,4 @@
-import { fancyDateNoTime } from "../utils";
+import { fancyDateNoTime } from "../utils/index.js";
 
 /* eslint-disable max-len */
 const setPassword = ({ otp, name, title }) =>
