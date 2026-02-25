@@ -12,7 +12,7 @@ function generateOTP() {
 }
 
 export const register = async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, email, password, role } = req.body;
 
   if (!fullName || !email || !password) {
     return res
@@ -36,6 +36,7 @@ export const register = async (req, res) => {
         fullName,
         email,
         password: hashedPassword,
+        role: role || "USER",
       },
     });
 
@@ -77,6 +78,45 @@ export const login = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: `Internal server error` });
+  }
+};
+
+export const updateUser = async (req, res) => {
+  const { userId } = req.params;
+  const { fullName, email, password, role } = req.body;
+
+  try {
+    const dataToUpdate = {};
+
+    if (fullName) dataToUpdate.fullName = fullName;
+    if (email) dataToUpdate.email = email;
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      dataToUpdate.password = hashedPassword;
+    }
+
+    // Only allow role change if requester is ADMIN
+    if (role && req.user?.role === "ADMIN") {
+      dataToUpdate.role = role;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: dataToUpdate,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update User error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -263,6 +303,27 @@ export const resetPassword = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error during password reset" });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await prisma.user.delete({
+      where: { id },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
