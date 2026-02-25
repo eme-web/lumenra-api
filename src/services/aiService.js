@@ -28,8 +28,8 @@ Use clear, concise language.
   const completion = await client.chat.completions.create({
     model: process.env.AI_MODEL,
     messages: [
-      { role: "system", content: systemMessage },
-      { role: "user", content: query },
+      { role: "SYSTEM", content: systemMessage },
+      { role: "USER", content: query },
     ],
     temperature: 0.7,
     max_tokens: 500,
@@ -61,7 +61,7 @@ export async function aiChat(userId, sessionId, message) {
   }
 
   // Add new user message
-  msgs.push({ role: "user", content: message });
+  msgs.push({ role: "USER", content: message });
 
   const systemMessage = `
 You are a trauma-informed supportive educational assistant.
@@ -69,7 +69,7 @@ Answer gently, avoid clinical advice. Use evidence where possible.
 `;
 
   // Build final messages
-  const prompt = [{ role: "system", content: systemMessage }, ...msgs];
+  const prompt = [{ role: "SYSTEM", content: systemMessage }, ...msgs];
 
   const completion = await client.chat.completions.create({
     model: process.env.AI_MODEL,
