@@ -2,8 +2,7 @@ FROM node:20-bullseye
 
 WORKDIR /app
 
-# Install OpenSSL (required by Prisma)
-RUN apt-get update -y && apt-get install -y openssl
+RUN apt-get update --fix-missing
 
 COPY package*.json ./
 
@@ -13,7 +12,9 @@ COPY . .
 
 RUN npx prisma generate
 
-EXPOSE 5000
+COPY nginx.conf /etc/nginx/nginx.conf
 
-CMD ["npm", "start"]
+EXPOSE 80
+
+CMD service nginx start && npm start
 
