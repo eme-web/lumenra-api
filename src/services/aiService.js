@@ -28,8 +28,8 @@ Use clear, concise language.
   const completion = await client.chat.completions.create({
     model: process.env.AI_MODEL,
     messages: [
-      { role: "SYSTEM", content: systemMessage },
-      { role: "USER", content: query },
+      { role: "system", content: systemMessage },
+      { role: "user", content: query },
     ],
     temperature: 0.7,
     max_tokens: 500,
@@ -61,7 +61,7 @@ export async function aiChat(userId, sessionId, message) {
   }
 
   // Add new user message
-  msgs.push({ role: "USER", content: message });
+  msgs.push({ role: "user", content: message });
 
   const systemMessage = `
 You are a trauma-informed supportive educational assistant.
@@ -69,7 +69,7 @@ Answer gently, avoid clinical advice. Use evidence where possible.
 `;
 
   // Build final messages
-  const prompt = [{ role: "SYSTEM", content: systemMessage }, ...msgs];
+  const prompt = [{ role: "system", content: systemMessage }, ...msgs];
 
   const completion = await client.chat.completions.create({
     model: process.env.AI_MODEL,
@@ -92,8 +92,8 @@ Answer gently, avoid clinical advice. Use evidence where possible.
         },
         messages: {
           create: [
-            { role: "USER", content: message },
-            { role: "ASSISTANT", content: assistantMsg },
+            { role: "user", content: message },
+            { role: "assistant", content: assistantMsg },
           ],
         },
       },
@@ -105,8 +105,8 @@ Answer gently, avoid clinical advice. Use evidence where possible.
       data: {
         messages: {
           create: [
-            { role: "USER", content: message },
-            { role: "ASSISTANT", content: assistantMsg },
+            { role: "user", content: message },
+            { role: "assistant", content: assistantMsg },
           ],
         },
       },
